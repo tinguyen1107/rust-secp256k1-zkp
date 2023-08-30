@@ -10,7 +10,8 @@ fi
 SECP_SYS="$SECP_VENDOR_GIT_ROOT"/secp256k1-zkp-sys
 DEFAULT_VERSION_CODE=$(grep version "$SECP_SYS/Cargo.toml" | sed 's/\./_/g' | sed 's/.*"\(.*\)".*/\1/')
 DEFAULT_DEPEND_DIR="$SECP_SYS/depend"
-DEFAULT_SECP_REPO=https://github.com/ElementsProject/secp256k1-zkp.git
+# DEFAULT_SECP_REPO=https://github.com/ElementsProject/secp256k1-zkp.git
+DEFAULT_SECP_REPO=https://github.com/ssantos21/secp256k1-zkp.git
 
 : "${SECP_VENDOR_VERSION_CODE:=$DEFAULT_VERSION_CODE}"
 : "${SECP_VENDOR_DEPEND_DIR:=$DEFAULT_DEPEND_DIR}"
@@ -75,6 +76,9 @@ if [ "$SECP_VENDOR_CP_NOT_CLONE" == "yes" ]; then
     chmod -R +w "$DIR" # cp preserves write perms, which if missing will cause patch to fail
 else
     git clone "$SECP_VENDOR_SECP_REPO" "$DIR"
+    pushd "$DIR" > /dev/null
+    git checkout -b blinded-musig-scheme origin/blinded-musig-scheme
+    popd
 fi
 
 # Check out specified revision
