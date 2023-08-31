@@ -544,6 +544,18 @@ extern "C" {
 
     #[cfg_attr(
         not(feature = "external-symbols"),
+        link_name = "rustsecp256k1zkp_v0_8_1_musig_get_keyaggcoef_and_negation_seckey"
+    )]
+    pub fn secp256k1_musig_get_keyaggcoef_and_negation_seckey(
+        cx: *const Context,
+        keyaggcoef: *mut MusigKeyAggCoef,
+        negate_seckey: *mut c_int,
+        keyagg_cache: *const MusigKeyAggCache,
+        pubkey: *const PublicKey,
+    ) -> c_int;
+
+    #[cfg_attr(
+        not(feature = "external-symbols"),
         link_name = "rustsecp256k1zkp_v0_8_1_musig_partial_sign"
     )]
     pub fn secp256k1_musig_partial_sign(
@@ -890,6 +902,7 @@ pub const MUSIG_AGGNONCE_SERIALIZED_LEN: usize = 66;
 pub const MUSIG_PUBNONCE_SERIALIZED_LEN: usize = 66;
 pub const MUSIG_SESSION_LEN: usize = 133;
 pub const MUSIG_PART_SIG_LEN: usize = 36;
+pub const MUSIG_KEYAGG_COEF_LEN: usize = 32;
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -1020,5 +1033,27 @@ impl Eq for MusigPartialSignature {}
 impl MusigPartialSignature {
     pub fn new() -> Self {
         MusigPartialSignature([0; MUSIG_PART_SIG_LEN])
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct MusigKeyAggCoef([c_uchar; MUSIG_KEYAGG_COEF_LEN]);
+impl_array_newtype!(MusigKeyAggCoef, c_uchar, MUSIG_KEYAGG_COEF_LEN);
+impl_raw_debug!(MusigKeyAggCoef);
+
+#[cfg(not(fuzzing))]
+impl PartialEq for MusigKeyAggCoef {
+    fn eq(&self, other: &Self) -> bool {
+        &self.0[..] == &other.0[..]
+    }
+}
+
+#[cfg(not(fuzzing))]
+impl Eq for MusigKeyAggCoef {}
+
+impl MusigKeyAggCoef {
+    pub fn new() -> Self {
+        MusigKeyAggCoef([0; MUSIG_KEYAGG_COEF_LEN])
     }
 }

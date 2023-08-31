@@ -585,6 +585,34 @@ impl MusigPartialSignature {
     }
 }
 
+/// A Key Aggregation coefficient
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub struct MusigKeyAggCoef(pub ffi::MusigKeyAggCoef);
+
+impl CPtr for MusigKeyAggCoef {
+    type Target = ffi::MusigKeyAggCoef;
+
+    fn as_c_ptr(&self) -> *const Self::Target {
+        self.as_ptr()
+    }
+
+    fn as_mut_c_ptr(&mut self) -> *mut Self::Target {
+        self.as_mut_ptr()
+    }
+}
+
+impl MusigKeyAggCoef {
+    /// Get a const pointer to the inner MusigPartialSignature
+    pub fn as_ptr(&self) -> *const ffi::MusigKeyAggCoef {
+        &self.0
+    }
+
+    /// Get a mut pointer to the inner MusigPartialSignature
+    pub fn as_mut_ptr(&mut self) -> *mut ffi::MusigKeyAggCoef {
+        &mut self.0
+    }
+}
+
 /// Musig partial signature parsing errors
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum ParseError {
@@ -1280,6 +1308,47 @@ impl MusigSession {
                     Also reaches here if R1 + R2*b == point at infinity, but only occurs with 1/1^128 probability")
             } else {
                 session
+            }
+        }
+    }
+
+    /// Extract key aggregation coefficient and secret key negation flag from the cache.
+    /// This function is used when creating blinded signatures.
+    /// 
+    /// # Returns:
+    ///
+    /// A [`MusigKeyAggCoef`] and [`bool`] that can be later be used in a [`MusigSession::partial_sign`]
+    /// # Arguments:
+    ///
+    /// * `secp` : [`Secp256k1`] context object initialized for signing
+    /// * `key_agg_cache`: [`MusigKeyAggCache`] containing the aggregate pubkey used in
+    /// the creation of this session
+    /// * `pub_key`: The [`PublicKey`] of the signer
+    pub fn get_keyaggcoef_and_negation_seckey<C: Signing>(
+        &self,
+        secp: &Secp256k1<C>,
+        key_agg_cache: &MusigKeyAggCache,
+        pub_key: &PublicKey,
+    ) -> (MusigKeyAggCoef, bool) {
+        unsafe {
+            let mut key_agg_coef = MusigKeyAggCoef(ffi::MusigKeyAggCoef::new());
+            let mut negation = 0;
+
+            if ffi::secp256k1_musig_get_keyaggcoef_and_negation_seckey(
+                secp.ctx().as_ptr(),
+                key_agg_coef.as_mut_ptr(),
+                &mut negation,
+                key_agg_cache.as_ptr(),
+                pub_key.as_c_ptr(),
+            ) == 0
+            {
+                // Only fails on cryptographically unreachable codes or if the args are invalid.
+                // None of which can occur in safe rust.
+                unreachable!("Impossible to construct invalid arguments in safe rust.
+                    Also reaches here if R1 + R2*b == point at infinity, but only occurs with 1/1^128 probability")
+            } else {
+                let negate_seckey = negation == 1;
+                (key_agg_coef, negate_seckey)
             }
         }
     }
