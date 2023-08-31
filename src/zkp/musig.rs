@@ -1402,6 +1402,60 @@ impl MusigSession {
         }
     }
 
+    /// Produces a partial signature for a given key pair and secret nonce.
+    ///
+    /// Remember that nonce reuse will immediately leak the secret key!
+    ///
+    /// # Returns:
+    ///
+    /// A [`MusigPartialSignature`] that can be later be aggregated into a [`schnorr::Signature`]
+    ///
+    /// # Arguments:
+    ///
+    /// * `secp` : [`Secp256k1`] context object initialized for signing
+    /// * `sec_nonce`: [`MusigSecNonce`] to be used for this session that has never
+    /// been used before. For mis-use resistance, this API takes a mutable reference
+    /// to `sec_nonce` and sets it to zero even if the partial signing fails.
+    /// * `key_pair`: The [`KeyPair`] to sign the message
+    /// * `key_agg_coef`: [`MusigKeyAggCoef`] containing the aggregate pubkey coefficient
+    /// * `negate_seckey`: [`bool`] to negate the secret key
+    ///
+    /// # Errors:
+    ///
+    /// - If the provided [`MusigSecNonce`] has already been used for signing
+    ///
+    pub fn blinded_partial_sign<C: Signing>(
+        &self,
+        secp: &Secp256k1<C>,
+        mut secnonce: MusigSecNonce,
+        keypair: &KeyPair,
+        key_agg_coef: &MusigKeyAggCoef,
+        negate_seckey: bool,
+    ) -> Result<MusigPartialSignature, MusigSignError> {
+        unsafe {
+            let mut partial_sig = MusigPartialSignature(ffi::MusigPartialSignature::new());
+            
+            let negation = if negate_seckey { 1 } else { 0 };
+
+            if ffi::secp256k1_blinded_musig_partial_sign(
+                secp.ctx().as_ptr(),
+                partial_sig.as_mut_ptr(),
+                secnonce.as_mut_ptr(),
+                keypair.as_c_ptr(),
+                self.as_ptr(),
+                key_agg_coef.as_ptr(),
+                negation,
+            ) == 0
+            {
+                // Since the arguments in rust are always session_valid, the only reason
+                // this will fail if the nonce was reused.
+                Err(MusigSignError::NonceReuse)
+            } else {
+                Ok(partial_sig)
+            }
+        }
+    }
+
     /// Checks that an individual partial signature verifies
     ///
     /// This function is essential when using protocols with adaptor signatures.

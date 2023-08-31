@@ -569,6 +569,20 @@ extern "C" {
 
     #[cfg_attr(
         not(feature = "external-symbols"),
+        link_name = "rustsecp256k1zkp_v0_8_1_blinded_musig_partial_sign"
+    )]
+    pub fn secp256k1_blinded_musig_partial_sign(
+        cx: *const Context,
+        partial_sig: *mut MusigPartialSignature,
+        secnonce: *mut MusigSecNonce,
+        keypair: *const KeyPair,
+        session: *const MusigSession,
+        keyaggcoef: *const MusigKeyAggCoef,
+        negate_seckey: c_int,
+    ) -> c_int;
+
+    #[cfg_attr(
+        not(feature = "external-symbols"),
         link_name = "rustsecp256k1zkp_v0_8_1_musig_partial_sig_verify"
     )]
     pub fn secp256k1_musig_partial_sig_verify(
