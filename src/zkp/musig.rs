@@ -1017,6 +1017,37 @@ impl MusigAggNonce {
     }
 }
 
+/// Random value used to blind the nonce and the challenge
+pub struct BlindingFactor([u8; 32]);
+
+impl BlindingFactor {
+
+    /// Creates a new [`MusigSessionId`] with thread local random bytes
+    #[cfg(feature = "rand-std")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "rand-std")))]
+    pub fn random() -> Self {
+        BlindingFactor::new(&mut rand::thread_rng())
+    }
+
+    /// Creates a new [`BlindingFactor`] with random bytes from the given rng
+    #[cfg(feature = "actual-rand")]
+    pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
+        let mut blinding_factor = [0u8; 32];
+        rng.fill_bytes(&mut blinding_factor);
+        BlindingFactor(blinding_factor)
+    }
+
+    /// Obtains the inner bytes of the [`MusigSessionId`].
+    pub fn to_bytes(&self) -> [u8; 32] {
+        self.0
+    }
+
+    /// Obtains a reference to the inner bytes of the [`MusigSessionId`].
+    pub fn as_bytes(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
+
 /// A musig Singing session.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct MusigSession(ffi::MusigSession);
@@ -1102,6 +1133,74 @@ impl MusigSession {
         Self::with_optional_adapter(secp, key_agg_cache, agg_nonce, msg, None)
     }
 
+    /// Creates a new musig signing session with a blinding factor.
+    /// 
+    /// Takes the public nonces of all signers and computes a session that is
+    /// required for signing and verification of partial signatures.
+    /// 
+    /// # Returns:
+    ///
+    /// A [`MusigSession`] that can be later used for signing.
+    ///
+    /// # Arguments:
+    ///
+    /// * `secp` : [`Secp256k1`] context object initialized for signing
+    /// * `key_agg_cache`: [`MusigKeyAggCache`] to be used for this session
+    /// * `agg_nonce`: [`MusigAggNonce`], the aggregate nonce
+    /// * `msg`: [`Message`] that will be signed later on.
+    /// * `blinding_factor`: [`BlindingFactor`] to blind the nonce and the challenge
+    /// Example:
+    ///
+    /// ```rust
+    /// # # [cfg(any(test, feature = "rand-std"))] {
+    /// # use secp256k1_zkp::rand::{thread_rng, RngCore};
+    /// # use secp256k1_zkp::{MusigKeyAggCache, Secp256k1, SecretKey, KeyPair, PublicKey, MusigSessionId, Message, MusigAggNonce, MusigSession};
+    /// # let secp = Secp256k1::new();
+    /// # let sk1 = SecretKey::new(&mut thread_rng());
+    /// # let pub_key1 = PublicKey::from_secret_key(&secp, &sk1);
+    /// # let sk2 = SecretKey::new(&mut thread_rng());
+    /// # let pub_key2 = PublicKey::from_secret_key(&secp, &sk2);
+    ///
+    /// # let key_agg_cache = MusigKeyAggCache::new(&secp, &[pub_key1, pub_key2]);
+    /// // The session id must be sampled at random. Read documentation for more details.
+    ///
+    /// let msg = Message::from_slice(b"Public Message we want to sign!!").unwrap();
+    ///
+    /// // Provide the current time for mis-use resistance
+    /// let session_id1 = MusigSessionId::new(&mut thread_rng());
+    /// let extra_rand1 : Option<[u8; 32]> = None;
+    /// let (_sec_nonce1, pub_nonce1) = key_agg_cache.nonce_gen(&secp, session_id1, pub_key1, msg, extra_rand1)
+    ///     .expect("non zero session id");
+    ///
+    /// // Signer two does the same. Possibly on a different device
+    /// let session_id2 = MusigSessionId::new(&mut thread_rng());
+    /// let extra_rand2 : Option<[u8; 32]> = None;
+    /// let (_sec_nonce2, pub_nonce2) = key_agg_cache.nonce_gen(&secp, session_id2, pub_key2, msg, extra_rand2)
+    ///     .expect("non zero session id");
+    ///
+    /// let aggnonce = MusigAggNonce::new(&secp, &[pub_nonce1, pub_nonce2]);
+    ///
+    /// let blinding_factor = BlindingFactor::new(&mut thread_rng());
+    /// 
+    /// let session = MusigSession::new(
+    ///     &secp,
+    ///     &key_agg_cache,
+    ///     aggnonce,
+    ///     msg,
+    ///     &blinding_factor
+    /// );
+    /// # }
+    /// ```
+    pub fn new_blinded<C: Signing>(
+        secp: &Secp256k1<C>,
+        key_agg_cache: &MusigKeyAggCache,
+        agg_nonce: MusigAggNonce,
+        msg: Message,
+        blinding_factor: &BlindingFactor,
+    ) -> Self {
+        Self::with_optional_adapter_and_blinding_factor(secp, key_agg_cache, agg_nonce, msg, None, blinding_factor)
+    }
+
     /// Same as [`MusigSession::new`] but with an adapter.
     ///
     /// The output of partial signature aggregation will be a pre-signature which
@@ -1138,6 +1237,41 @@ impl MusigSession {
                 msg.as_c_ptr(),
                 key_agg_cache.as_ptr(),
                 adaptor_ptr,
+            ) == 0
+            {
+                // Only fails on cryptographically unreachable codes or if the args are invalid.
+                // None of which can occur in safe rust.
+                unreachable!("Impossible to construct invalid arguments in safe rust.
+                    Also reaches here if R1 + R2*b == point at infinity, but only occurs with 1/1^128 probability")
+            } else {
+                session
+            }
+        }
+    }
+
+    /// Internal function to create a new MusigSession with an optional adaptor and a blinding factor.
+    fn with_optional_adapter_and_blinding_factor<C: Signing>(
+        secp: &Secp256k1<C>,
+        key_agg_cache: &MusigKeyAggCache,
+        agg_nonce: MusigAggNonce,
+        msg: Message,
+        adaptor: Option<PublicKey>,
+        blinding_factor: &BlindingFactor,
+    ) -> Self {
+        let mut session = MusigSession(ffi::MusigSession::new());
+        let adaptor_ptr = match adaptor {
+            Some(a) => a.as_c_ptr(),
+            None => core::ptr::null(),
+        };
+        unsafe {
+            if ffi::secp256k1_blinded_musig_nonce_process(
+                secp.ctx().as_ptr(),
+                session.as_mut_ptr(),
+                agg_nonce.as_ptr(),
+                msg.as_c_ptr(),
+                key_agg_cache.as_ptr(),
+                adaptor_ptr,
+                blinding_factor.as_bytes().as_ptr(),
             ) == 0
             {
                 // Only fails on cryptographically unreachable codes or if the args are invalid.

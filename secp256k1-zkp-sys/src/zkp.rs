@@ -470,6 +470,20 @@ extern "C" {
 
     #[cfg_attr(
         not(feature = "external-symbols"),
+        link_name = "rustsecp256k1zkp_v0_8_1_blinded_musig_nonce_process"
+    )]
+    pub fn secp256k1_blinded_musig_nonce_process(
+        cx: *const Context,
+        session: *mut MusigSession,
+        aggnonce: *const MusigAggNonce,
+        msg32: *const c_uchar,
+        keyagg_cache: *const MusigKeyAggCache,
+        adaptor: *const PublicKey,
+        blinding_factor: *const c_uchar,
+    ) -> c_int;
+
+    #[cfg_attr(
+        not(feature = "external-symbols"),
         link_name = "rustsecp256k1zkp_v0_8_1_musig_pubnonce_serialize"
     )]
     pub fn secp256k1_musig_pubnonce_serialize(
