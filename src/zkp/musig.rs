@@ -16,6 +16,7 @@ use crate::ZERO_TWEAK;
 use crate::{schnorr, KeyPair, XOnlyPublicKey};
 use crate::{Message, PublicKey, Secp256k1, SecretKey, Tweak};
 use crate::{Signing, Verification};
+use ffi::{MUSIG_SECNONCE_LEN, MUSIG_KEYAGG_COEF_LEN, MUSIG_SESSION_LEN};
 use secp256k1::Parity;
 
 #[cfg(feature = "actual-rand")]
@@ -587,7 +588,7 @@ impl MusigPartialSignature {
 
 /// A Key Aggregation coefficient
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct MusigKeyAggCoef(pub ffi::MusigKeyAggCoef);
+pub struct MusigKeyAggCoef(ffi::MusigKeyAggCoef);
 
 impl CPtr for MusigKeyAggCoef {
     type Target = ffi::MusigKeyAggCoef;
@@ -611,6 +612,18 @@ impl MusigKeyAggCoef {
     pub fn as_mut_ptr(&mut self) -> *mut ffi::MusigKeyAggCoef {
         &mut self.0
     }
+
+    /// Function to return a copy of the internal array
+    pub fn serialize(&self) -> [u8; MUSIG_KEYAGG_COEF_LEN] {
+        let ffi::MusigKeyAggCoef(array) = &self.0;
+        *array // returns a copy of the array
+    }
+
+    /// Function to create a new MusigKeyAggCoef from a 32 byte array
+    pub fn from_slice(array: [u8; MUSIG_KEYAGG_COEF_LEN]) -> Self {
+        MusigKeyAggCoef(ffi::MusigKeyAggCoef(array))
+    }
+
 }
 
 /// Musig partial signature parsing errors
@@ -838,6 +851,17 @@ impl MusigSecNonce {
     /// Get a mut pointer to the inner MusigKeyAggCache
     pub fn as_mut_ptr(&mut self) -> *mut ffi::MusigSecNonce {
         &mut self.0
+    }
+
+    /// Function to return a copy of the internal array
+    pub fn serialize(&self) -> [u8; MUSIG_SECNONCE_LEN] {
+        let ffi::MusigSecNonce(array) = &self.0;
+        *array // returns a copy of the array
+    }
+
+    /// Function to create a new MusigKeyAggCoef from a 32 byte array
+    pub fn from_slice(array: [u8; MUSIG_SECNONCE_LEN]) -> Self {
+        MusigSecNonce(ffi::MusigSecNonce(array))
     }
 }
 
@@ -1670,6 +1694,17 @@ impl MusigSession {
     /// Get a mut pointer to the inner MusigSession
     pub fn as_mut_ptr(&mut self) -> *mut ffi::MusigSession {
         &mut self.0
+    }
+
+    /// Function to return a copy of the internal array
+    pub fn serialize(&self) -> [u8; MUSIG_SESSION_LEN] {
+        let ffi::MusigSession(array) = &self.0;
+        *array // returns a copy of the array
+    }
+
+    /// Function to create a new MusigKeyAggCoef from a 32 byte array
+    pub fn from_slice(array: [u8; MUSIG_SESSION_LEN]) -> Self {
+        MusigSession(ffi::MusigSession(array))
     }
 }
 

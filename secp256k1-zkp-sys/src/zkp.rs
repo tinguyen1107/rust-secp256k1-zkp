@@ -942,7 +942,7 @@ impl MusigKeyAggCache {
 
 #[repr(C)]
 #[derive(Copy, Clone)]
-pub struct MusigSecNonce([c_uchar; MUSIG_SECNONCE_LEN]);
+pub struct MusigSecNonce(pub [c_uchar; MUSIG_SECNONCE_LEN]);
 impl_array_newtype!(MusigSecNonce, c_uchar, MUSIG_SECNONCE_LEN);
 impl_raw_debug!(MusigSecNonce);
 
@@ -1008,7 +1008,7 @@ impl MusigAggNonce {
 
 #[repr(C)]
 #[derive(Copy, Clone)]
-pub struct MusigSession([c_uchar; MUSIG_SESSION_LEN]);
+pub struct MusigSession(pub [c_uchar; MUSIG_SESSION_LEN]);
 impl_array_newtype!(MusigSession, c_uchar, MUSIG_SESSION_LEN);
 impl_raw_debug!(MusigSession);
 
@@ -1052,7 +1052,7 @@ impl MusigPartialSignature {
 
 #[repr(C)]
 #[derive(Copy, Clone)]
-pub struct MusigKeyAggCoef([c_uchar; MUSIG_KEYAGG_COEF_LEN]);
+pub struct MusigKeyAggCoef(pub [c_uchar; MUSIG_KEYAGG_COEF_LEN]);
 impl_array_newtype!(MusigKeyAggCoef, c_uchar, MUSIG_KEYAGG_COEF_LEN);
 impl_raw_debug!(MusigKeyAggCoef);
 
