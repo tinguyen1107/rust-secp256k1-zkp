@@ -252,10 +252,10 @@ impl MusigKeyAggCache {
         &mut self,
         secp: &Secp256k1<C>,
         tweak: SecretKey,
-    ) -> Result<XOnlyPublicKey, MusigTweakErr> {
+    ) -> Result<PublicKey, MusigTweakErr> {
         let cx = secp.ctx().as_ptr();
         unsafe {
-            let mut out = XOnlyPublicKey::from(ffi::XOnlyPublicKey::new());
+            let mut out = PublicKey::from(ffi::PublicKey::new());
             if ffi::secp256k1_musig_pubkey_xonly_tweak_add(
                 cx,
                 out.as_mut_c_ptr(),

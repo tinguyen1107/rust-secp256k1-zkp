@@ -394,7 +394,7 @@ extern "C" {
     )]
     pub fn secp256k1_musig_pubkey_xonly_tweak_add(
         cx: *const Context,
-        output_pubkey: *mut XOnlyPublicKey,
+        output_pubkey: *mut PublicKey,
         keyagg_cache: *mut MusigKeyAggCache,
         tweak32: *const c_uchar,
     ) -> c_int;
