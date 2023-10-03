@@ -1699,6 +1699,23 @@ impl MusigSession {
         }
     }
 
+    /// Extracts the challenge from a session
+    pub fn get_challenge_from_session(&self) -> [u8; 32] {
+        let mut challenge = [0u8; 32];
+        unsafe {
+            if ffi::secp256k1_get_challenge_from_session(
+                ffi::secp256k1_context_no_precomp,
+                self.as_ptr(),
+                challenge.as_mut_ptr(),
+            ) == 0
+            {
+                unreachable!("Well-typed and valid arguments to the function")
+            } else {
+                challenge
+            }
+        }
+    }
+
     /// Removes the final nonce from the session
     pub fn remove_fin_nonce_from_session(&self) -> Self {
         let mut session = MusigSession::from_slice(self.serialize());

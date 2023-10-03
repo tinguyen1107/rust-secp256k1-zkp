@@ -777,6 +777,19 @@ int rustsecp256k1zkp_v0_8_1_musig_partial_sign(const rustsecp256k1zkp_v0_8_1_con
     return 1;
 }
 
+SECP256K1_API int rustsecp256k1zkp_v0_8_1_get_challenge_from_session(
+    const rustsecp256k1zkp_v0_8_1_context* ctx, 
+    const rustsecp256k1zkp_v0_8_1_musig_session *session,
+    unsigned char* challenge
+) {
+    rustsecp256k1zkp_v0_8_1_musig_session_internal session_i;
+    if (!rustsecp256k1zkp_v0_8_1_musig_session_load(ctx, &session_i, session)) {
+        return 0;
+    }
+    rustsecp256k1zkp_v0_8_1_scalar_get_b32(challenge, &session_i.challenge);
+    return 1;
+}
+
 SECP256K1_API int rustsecp256k1zkp_v0_8_1_blinded_musig_remove_fin_nonce_from_session(
     const rustsecp256k1zkp_v0_8_1_context *ctx,
     rustsecp256k1zkp_v0_8_1_musig_session *session

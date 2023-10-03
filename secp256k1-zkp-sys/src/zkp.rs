@@ -618,6 +618,16 @@ extern "C" {
 
     #[cfg_attr(
         not(feature = "external-symbols"),
+        link_name = "rustsecp256k1zkp_v0_8_1_get_challenge_from_session"
+    )]
+    pub fn secp256k1_get_challenge_from_session(
+        cx: *const Context,
+        session: *const MusigSession,
+        challenge: *mut c_uchar,
+    ) -> c_int;
+
+    #[cfg_attr(
+        not(feature = "external-symbols"),
         link_name = "rustsecp256k1zkp_v0_8_1_blinded_musig_remove_fin_nonce_from_session"
     )]
     pub fn secp256k1_musig_remove_fin_nonce_from_session(
