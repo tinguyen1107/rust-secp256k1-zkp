@@ -1089,6 +1089,19 @@ impl BlindingFactor {
         BlindingFactor(blinding_factor)
     }
 
+    /// Creates a new [`BlindingFactor`] from a 32 byte array
+    pub fn from_slice(data: &[u8]) -> Result<Self, ParseError> {
+        if data.len() != 32 {
+            return Err(ParseError::ArgLenMismatch {
+                expected: 32,
+                got: data.len(),
+            });
+        }
+        let mut blinding_factor = [0u8; 32];
+        blinding_factor.copy_from_slice(data);
+        Ok(BlindingFactor(blinding_factor))
+    }
+
     /// Obtains the inner bytes of the [`MusigSessionId`].
     pub fn to_bytes(&self) -> [u8; 32] {
         self.0
