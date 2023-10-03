@@ -1699,6 +1699,22 @@ impl MusigSession {
         }
     }
 
+    /// Removes the final nonce from the session
+    pub fn remove_fin_nonce_from_session(&self) -> Self {
+        let mut session = MusigSession::from_slice(self.serialize());
+        unsafe {
+            if ffi::secp256k1_musig_remove_fin_nonce_from_session(
+                ffi::secp256k1_context_no_precomp,
+                session.as_mut_ptr(),
+            ) == 0
+            {
+                unreachable!("Well-typed and valid arguments to the function")
+            } else {
+                session
+            }
+        }
+    }
+
     /// Get a const pointer to the inner MusigSession
     pub fn as_ptr(&self) -> *const ffi::MusigSession {
         &self.0

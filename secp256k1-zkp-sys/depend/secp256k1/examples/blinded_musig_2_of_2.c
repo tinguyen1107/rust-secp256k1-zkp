@@ -35,8 +35,7 @@ static int create_nonces(
     rustsecp256k1zkp_v0_8_1_musig_secnonce* secnonce,
     rustsecp256k1zkp_v0_8_1_musig_pubnonce* pubnonce, 
     const unsigned char* seckey,
-    const rustsecp256k1zkp_v0_8_1_pubkey* pubkey,
-    const unsigned char* msg
+    const rustsecp256k1zkp_v0_8_1_pubkey* pubkey
 ) {
     unsigned char session_id[32];
 
@@ -45,7 +44,7 @@ static int create_nonces(
         return 0;
     }
 
-    if (!rustsecp256k1zkp_v0_8_1_musig_nonce_gen(ctx, secnonce, pubnonce, session_id, seckey, pubkey, msg, NULL, NULL)) {
+    if (!rustsecp256k1zkp_v0_8_1_musig_nonce_gen(ctx, secnonce, pubnonce, session_id, seckey, pubkey, NULL, NULL, NULL)) {
         printf("Failed to generate nonce\n");
         return 0;
     }
@@ -83,6 +82,9 @@ int test_sign_verify(rustsecp256k1zkp_v0_8_1_context* ctx) {
     rustsecp256k1zkp_v0_8_1_musig_aggnonce agg_pubnonce;
 
     rustsecp256k1zkp_v0_8_1_musig_session session;
+
+    /* server receives the session data with the final nonce removed */
+    rustsecp256k1zkp_v0_8_1_musig_session server_session;
 
     unsigned char blinding_factor[32];
 
@@ -150,13 +152,13 @@ int test_sign_verify(rustsecp256k1zkp_v0_8_1_context* ctx) {
     memset(&server_secnonce, 0, sizeof(server_secnonce));
     memset(&server_pubnonce, 0, sizeof(server_pubnonce));  
 
-    if (!create_nonces(ctx, &client_secnonce, &client_pubnonce,  client_seckey, &client_pubkey, msg)) {
+    if (!create_nonces(ctx, &client_secnonce, &client_pubnonce,  client_seckey, &client_pubkey)) {
         printf("fail\n");
         printf("Failed to generate client nonce\n");
         return 0;
     }
 
-    if (!create_nonces(ctx, &server_secnonce, &server_pubnonce,  server_seckey, &server_pubkey, msg)) {
+    if (!create_nonces(ctx, &server_secnonce, &server_pubnonce,  server_seckey, &server_pubkey)) {
         printf("fail\n");
         printf("Failed to generate server nonce\n");
         return 0;
@@ -211,7 +213,15 @@ int test_sign_verify(rustsecp256k1zkp_v0_8_1_context* ctx) {
         return 0;
     }
 
-    if (!rustsecp256k1zkp_v0_8_1_blinded_musig_partial_sign(ctx, &server_partial_sig, &server_secnonce, &server_keypair, &session, keyaggcoef, negate_seckey)) {
+    memcpy(&server_session, &session, sizeof(session));
+
+    if (!rustsecp256k1zkp_v0_8_1_blinded_musig_remove_fin_nonce_from_session(ctx, &server_session)) {
+        printf("fail\n");
+        printf("Failed to remove final nonce from session\n");
+        return 0;
+    }
+
+    if (!rustsecp256k1zkp_v0_8_1_blinded_musig_partial_sign(ctx, &server_partial_sig, &server_secnonce, &server_keypair, &server_session, keyaggcoef, negate_seckey)) {
         printf("fail\n");
         printf("Server failed to sign message\n");
         return 0;

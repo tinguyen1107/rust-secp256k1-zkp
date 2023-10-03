@@ -49,8 +49,7 @@ static int create_nonces(
     rustsecp256k1zkp_v0_8_1_musig_secnonce* secnonce,
     rustsecp256k1zkp_v0_8_1_musig_pubnonce* pubnonce, 
     const unsigned char* seckey,
-    const rustsecp256k1zkp_v0_8_1_pubkey* pubkey,
-    const unsigned char* msg
+    const rustsecp256k1zkp_v0_8_1_pubkey* pubkey
 ) {
     unsigned char session_id[32];
 
@@ -59,7 +58,7 @@ static int create_nonces(
         return 0;
     }
 
-    if (!rustsecp256k1zkp_v0_8_1_musig_nonce_gen(ctx, secnonce, pubnonce, session_id, seckey, pubkey, msg, NULL, NULL)) {
+    if (!rustsecp256k1zkp_v0_8_1_musig_nonce_gen(ctx, secnonce, pubnonce, session_id, seckey, pubkey, NULL, NULL, NULL)) {
         printf("Failed to generate nonce\n");
         return 0;
     }
@@ -90,6 +89,9 @@ int sign_and_verify(rustsecp256k1zkp_v0_8_1_context* ctx, const size_t _server_c
     unsigned char msg[32];
 
     rustsecp256k1zkp_v0_8_1_musig_session session;
+
+    /* server receives the session data with the final nonce removed */
+    rustsecp256k1zkp_v0_8_1_musig_session server_session;
 
     rustsecp256k1zkp_v0_8_1_musig_partial_sig *partial_sig;
 
@@ -141,7 +143,7 @@ int sign_and_verify(rustsecp256k1zkp_v0_8_1_context* ctx, const size_t _server_c
         goto cleanup;
     }
 
-    if (!create_nonces(ctx, &client_data.secnonce, &client_data.pubnonce,  client_data.seckey, &client_data.pubkey, msg)) {
+    if (!create_nonces(ctx, &client_data.secnonce, &client_data.pubnonce,  client_data.seckey, &client_data.pubkey)) {
         printf("fail\n");
         printf("Failed to generate client nonce\n");
         goto cleanup;
@@ -151,7 +153,7 @@ int sign_and_verify(rustsecp256k1zkp_v0_8_1_context* ctx, const size_t _server_c
 
     for (i = 0; i < server_count; i++)
     {
-        if (!create_nonces(ctx, &server_data[i].secnonce, &server_data[i].pubnonce,  server_data[i].seckey, &server_data[i].pubkey, msg)) {
+        if (!create_nonces(ctx, &server_data[i].secnonce, &server_data[i].pubnonce,  server_data[i].seckey, &server_data[i].pubkey)) {
             printf("fail\n");
             printf("Failed to generate server %d nonce\n", (int) i);
             goto cleanup;
@@ -190,6 +192,14 @@ int sign_and_verify(rustsecp256k1zkp_v0_8_1_context* ctx, const size_t _server_c
         goto cleanup;
     }
 
+    memcpy(&server_session, &session, sizeof(session));
+
+    if (!rustsecp256k1zkp_v0_8_1_blinded_musig_remove_fin_nonce_from_session(ctx, &server_session)) {
+        printf("fail\n");
+        printf("Failed to remove final nonce from session\n");
+        return 0;
+    }
+
     for (i = 0; i < server_count; i++)
     {
         if (!rustsecp256k1zkp_v0_8_1_musig_get_keyaggcoef_and_negation_seckey(ctx, server_data[i].keyaggcoef, &server_data[i].negate_seckey, &cache, &server_data[i].pubkey)) {
@@ -198,12 +208,13 @@ int sign_and_verify(rustsecp256k1zkp_v0_8_1_context* ctx, const size_t _server_c
             goto cleanup;
         }
 
-         if (!rustsecp256k1zkp_v0_8_1_blinded_musig_partial_sign(ctx, &partial_sig[i + 1], &server_data[i].secnonce, &server_data[i].keypair, &session, server_data[i].keyaggcoef, server_data[i].negate_seckey)) {
+         if (!rustsecp256k1zkp_v0_8_1_blinded_musig_partial_sign(ctx, &partial_sig[i + 1], &server_data[i].secnonce, &server_data[i].keypair, &server_session, server_data[i].keyaggcoef, server_data[i].negate_seckey)) {
             printf("fail\n");
             printf("Server %d  failed to sign message\n", (int) i);
             goto cleanup;
         }
 
+        /* Verification is done by the client, therefore it uses session data */
         if (!rustsecp256k1zkp_v0_8_1_musig_partial_sig_verify(ctx, &partial_sig[i + 1], &server_data[i].pubnonce, &server_data[i].pubkey, &cache, &session)) {
             printf("fail\n");
             printf("Failed to verify server %d partial signature\n", (int) i);
