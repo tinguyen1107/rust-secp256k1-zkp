@@ -484,6 +484,21 @@ extern "C" {
 
     #[cfg_attr(
         not(feature = "external-symbols"),
+        link_name = "rustsecp256k1zkp_v0_8_1_blinded_musig_nonce_process_without_keyaggcoeff"
+    )]
+    pub fn secp256k1_blinded_musig_nonce_process_without_keyaggcoeff(
+        cx: *const Context,
+        session: *mut MusigSession,
+        aggnonce: *const MusigAggNonce,
+        msg32: *const c_uchar,
+        aggregate_pubkey: *const PublicKey,
+        adaptor: *const PublicKey,
+        blinding_factor: *const c_uchar,
+        tweak32: *const c_uchar,
+    ) -> c_int;
+
+    #[cfg_attr(
+        not(feature = "external-symbols"),
         link_name = "rustsecp256k1zkp_v0_8_1_musig_pubnonce_serialize"
     )]
     pub fn secp256k1_musig_pubnonce_serialize(
@@ -583,6 +598,33 @@ extern "C" {
 
     #[cfg_attr(
         not(feature = "external-symbols"),
+        link_name = "rustsecp256k1zkp_v0_8_1_blinded_musig_partial_sign_without_keyaggcoeff"
+    )]
+    pub fn secp256k1_blinded_musig_partial_sign_without_keyaggcoeff(
+        cx: *const Context,
+        partial_sig: *mut MusigPartialSignature,
+        secnonce: *mut MusigSecNonce,
+        keypair: *const KeyPair,
+        session: *const MusigSession,
+        negate_seckey: c_int,
+    ) -> c_int;
+
+    #[cfg_attr(
+        not(feature = "external-symbols"),
+        link_name = "rustsecp256k1zkp_v0_8_1_blinded_musig_partial_sig_verify"
+    )]
+    pub fn secp256k1_blinded_musig_partial_sig_verify(
+        cx: *const Context,
+        partial_sig: *const MusigPartialSignature,
+        pubnonce: *const MusigPubNonce,
+        pubkey: *const PublicKey,
+        aggregate_pubkey: *const PublicKey,
+        session: *const MusigSession,
+        parity_acc: c_int,
+    ) -> c_int;
+
+    #[cfg_attr(
+        not(feature = "external-symbols"),
         link_name = "rustsecp256k1zkp_v0_8_1_musig_partial_sig_verify"
     )]
     pub fn secp256k1_musig_partial_sig_verify(
@@ -633,6 +675,30 @@ extern "C" {
     pub fn secp256k1_musig_remove_fin_nonce_from_session(
         cx: *const Context,
         session: *mut MusigSession,
+    ) -> c_int;
+
+    #[cfg_attr(
+        not(feature = "external-symbols"),
+        link_name = "rustsecp256k1zkp_v0_8_1_musig_negate_seckey"
+    )]
+    pub fn secp256k1_blinded_musig_negate_seckey(
+        cx: *const Context,
+        aggregate_pubkey: *const PublicKey,
+        parity_acc: c_int,
+        negate_seckey: *mut c_int,
+    ) -> c_int;
+
+    #[cfg_attr(
+        not(feature = "external-symbols"),
+        link_name = "rustsecp256k1zkp_v0_8_1_blinded_musig_pubkey_xonly_tweak_add"
+    )]
+    pub fn secp256k1_blinded_musig_pubkey_xonly_tweak_add(
+        cx: *const Context,
+        output_pubkey: *mut PublicKey,
+        parity_acc: *mut c_int,
+        aggregate_pubkey: *const PublicKey,
+        tweak32: *const c_uchar,
+        out_tweak32: *mut c_uchar,
     ) -> c_int;
 
     #[cfg_attr(

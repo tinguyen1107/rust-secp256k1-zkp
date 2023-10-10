@@ -692,6 +692,73 @@ pub fn adapt(
     }
 }
 
+/// Extract secret key negation flag from the aggregate_pubkey and parity_acc.
+/// This function is used when creating blinded signatures.
+/// 
+/// # Returns:
+///
+/// The [`bool`] result that can be later be used in a [`MusigSession::partial_sign`]
+/// # Arguments:
+///
+/// * `secp` : [`Secp256k1`] context object initialized for signing
+/// * `aggregate_pubkey`: [`PublicKey`] containing the aggregate pubkey 
+/// * `parity_acc`: The [`i32`] parity of the aggregate public key
+pub fn blinded_musig_negate_seckey<C: Signing>(
+    secp: &Secp256k1<C>,
+    aggregate_pubkey: &PublicKey,
+    parity_acc: i32,
+) -> bool {
+    unsafe {
+        let mut negate_seckey = 0;
+
+        if ffi::secp256k1_blinded_musig_negate_seckey(
+            secp.ctx().as_ptr(),
+            aggregate_pubkey.as_c_ptr(),
+            parity_acc,
+            &mut negate_seckey,
+        ) == 0
+        {
+            // Only fails on cryptographically unreachable codes or if the args are invalid.
+            // None of which can occur in safe rust.
+            unreachable!("Impossible to construct invalid arguments in safe rust.
+                Also reaches here if R1 + R2*b == point at infinity, but only occurs with 1/1^128 probability")
+        } else {
+            negate_seckey == 1
+        }
+    }
+}
+
+/// Apply "x-only" tweaking to a public key
+pub fn blinded_musig_pubkey_xonly_tweak_add<C: Signing>(
+    secp: &Secp256k1<C>,
+    aggregate_pubkey: &PublicKey,
+    tweak32: SecretKey,
+
+) -> (i32, PublicKey, Tweak) {
+    unsafe {
+        let mut parity_acc = 0;
+        let mut out_tweak32 = ZERO_TWEAK; 
+        let mut out_pubkey = aggregate_pubkey.clone();
+
+        if ffi::secp256k1_blinded_musig_pubkey_xonly_tweak_add(
+            secp.ctx().as_ptr(),
+            out_pubkey.as_mut_c_ptr(),
+            &mut parity_acc,
+            aggregate_pubkey.as_c_ptr(),
+            tweak32.as_c_ptr(),
+            out_tweak32.as_mut_c_ptr(),
+        ) == 0
+        {
+            // Only fails on cryptographically unreachable codes or if the args are invalid.
+            // None of which can occur in safe rust.
+            unreachable!("Impossible to construct invalid arguments in safe rust.
+                Also reaches here if R1 + R2*b == point at infinity, but only occurs with 1/1^128 probability")
+        } else {
+            (parity_acc, out_pubkey, out_tweak32)
+        }
+    }
+}
+
 /// Extracts a secret adaptor from a MuSig.
 ///
 /// Extracts a secret adaptor from a MuSig, given all parties' partial
@@ -1266,6 +1333,76 @@ impl MusigSession {
         Self::with_optional_adapter_and_blinding_factor(secp, key_agg_cache, agg_nonce, msg, None, blinding_factor)
     }
 
+    /// Creates a new musig signing session with a blinding factor.
+    /// 
+    /// Takes the public nonces of all signers and computes a session that is
+    /// required for signing and verification of partial signatures.
+    /// 
+    /// # Returns:
+    ///
+    /// A [`MusigSession`] that can be later used for signing.
+    ///
+    /// # Arguments:
+    ///
+    /// * `secp` : [`Secp256k1`] context object initialized for signing
+    /// * `key_agg_cache`: [`MusigKeyAggCache`] to be used for this session
+    /// * `agg_nonce`: [`MusigAggNonce`], the aggregate nonce
+    /// * `msg`: [`Message`] that will be signed later on.
+    /// * `blinding_factor`: [`BlindingFactor`] to blind the nonce and the challenge
+    /// Example:
+    ///
+    /// ```rust
+    /// # # [cfg(any(test, feature = "rand-std"))] {
+    /// # use secp256k1_zkp::rand::{thread_rng, RngCore};
+    /// # use secp256k1_zkp::{MusigKeyAggCache, Secp256k1, SecretKey, KeyPair, PublicKey, MusigSessionId, Message, MusigAggNonce, MusigSession};
+    /// # let secp = Secp256k1::new();
+    /// # let sk1 = SecretKey::new(&mut thread_rng());
+    /// # let pub_key1 = PublicKey::from_secret_key(&secp, &sk1);
+    /// # let sk2 = SecretKey::new(&mut thread_rng());
+    /// # let pub_key2 = PublicKey::from_secret_key(&secp, &sk2);
+    ///
+    /// # let key_agg_cache = MusigKeyAggCache::new(&secp, &[pub_key1, pub_key2]);
+    /// // The session id must be sampled at random. Read documentation for more details.
+    ///
+    /// let msg = Message::from_slice(b"Public Message we want to sign!!").unwrap();
+    ///
+    /// // Provide the current time for mis-use resistance
+    /// let session_id1 = MusigSessionId::new(&mut thread_rng());
+    /// let extra_rand1 : Option<[u8; 32]> = None;
+    /// let (_sec_nonce1, pub_nonce1) = key_agg_cache.nonce_gen(&secp, session_id1, pub_key1, msg, extra_rand1)
+    ///     .expect("non zero session id");
+    ///
+    /// // Signer two does the same. Possibly on a different device
+    /// let session_id2 = MusigSessionId::new(&mut thread_rng());
+    /// let extra_rand2 : Option<[u8; 32]> = None;
+    /// let (_sec_nonce2, pub_nonce2) = key_agg_cache.nonce_gen(&secp, session_id2, pub_key2, msg, extra_rand2)
+    ///     .expect("non zero session id");
+    ///
+    /// let aggnonce = MusigAggNonce::new(&secp, &[pub_nonce1, pub_nonce2]);
+    ///
+    /// let blinding_factor = BlindingFactor::new(&mut thread_rng());
+    /// 
+    /// let session = MusigSession::new(
+    ///     &secp,
+    ///     &key_agg_cache,
+    ///     aggnonce,
+    ///     msg,
+    ///     &blinding_factor
+    /// );
+    /// # }
+    /// ```
+    pub fn new_blinded_without_key_agg_cache<C: Signing>(
+        secp: &Secp256k1<C>,
+        aggregate_pubkey: &PublicKey,
+        agg_nonce: MusigAggNonce,
+        msg: Message,
+        adaptor: Option<PublicKey>,
+        blinding_factor: &BlindingFactor,
+        tweak32: Tweak
+    ) -> Self {
+        Self::blinded_without_key_agg_cache(secp, aggregate_pubkey, agg_nonce, msg, adaptor, blinding_factor, tweak32)
+    }
+
     /// Same as [`MusigSession::new`] but with an adapter.
     ///
     /// The output of partial signature aggregation will be a pre-signature which
@@ -1337,6 +1474,43 @@ impl MusigSession {
                 key_agg_cache.as_ptr(),
                 adaptor_ptr,
                 blinding_factor.as_bytes().as_ptr(),
+            ) == 0
+            {
+                // Only fails on cryptographically unreachable codes or if the args are invalid.
+                // None of which can occur in safe rust.
+                unreachable!("Impossible to construct invalid arguments in safe rust.
+                    Also reaches here if R1 + R2*b == point at infinity, but only occurs with 1/1^128 probability")
+            } else {
+                session
+            }
+        }
+    }
+
+    /// Internal function to create a new blinded MusigSession without using key_agg_cache.
+    fn blinded_without_key_agg_cache<C: Signing>(
+        secp: &Secp256k1<C>,
+        aggregate_pubkey: &PublicKey,
+        agg_nonce: MusigAggNonce,
+        msg: Message,
+        adaptor: Option<PublicKey>,
+        blinding_factor: &BlindingFactor,
+        tweak32: Tweak
+    ) -> Self {
+        let mut session = MusigSession(ffi::MusigSession::new());
+        let adaptor_ptr = match adaptor {
+            Some(a) => a.as_c_ptr(),
+            None => core::ptr::null(),
+        };
+        unsafe {
+            if ffi::secp256k1_blinded_musig_nonce_process_without_keyaggcoeff(
+                secp.ctx().as_ptr(),
+                session.as_mut_ptr(),
+                agg_nonce.as_ptr(),
+                msg.as_c_ptr(),
+                aggregate_pubkey.as_c_ptr(),
+                adaptor_ptr,
+                blinding_factor.as_bytes().as_ptr(),
+                tweak32.as_c_ptr(),
             ) == 0
             {
                 // Only fails on cryptographically unreachable codes or if the args are invalid.
@@ -1493,6 +1667,58 @@ impl MusigSession {
         }
     }
 
+    /// Produces a partial signature for a given key pair and secret nonce.
+    ///
+    /// Remember that nonce reuse will immediately leak the secret key!
+    ///
+    /// # Returns:
+    ///
+    /// A [`MusigPartialSignature`] that can be later be aggregated into a [`schnorr::Signature`]
+    ///
+    /// # Arguments:
+    ///
+    /// * `secp` : [`Secp256k1`] context object initialized for signing
+    /// * `sec_nonce`: [`MusigSecNonce`] to be used for this session that has never
+    /// been used before. For mis-use resistance, this API takes a mutable reference
+    /// to `sec_nonce` and sets it to zero even if the partial signing fails.
+    /// * `key_pair`: The [`KeyPair`] to sign the message
+    /// * `key_agg_coef`: [`MusigKeyAggCoef`] containing the aggregate pubkey coefficient
+    /// * `negate_seckey`: [`bool`] to negate the secret key
+    ///
+    /// # Errors:
+    ///
+    /// - If the provided [`MusigSecNonce`] has already been used for signing
+    ///
+    pub fn blinded_partial_sign_without_keyaggcoeff<C: Signing>(
+        &self,
+        secp: &Secp256k1<C>,
+        mut secnonce: MusigSecNonce,
+        keypair: &KeyPair,
+        negate_seckey: bool,
+    ) -> Result<MusigPartialSignature, MusigSignError> {
+        unsafe {
+            let mut partial_sig = MusigPartialSignature(ffi::MusigPartialSignature::new());
+            
+            let negation = if negate_seckey { 1 } else { 0 };
+
+            if ffi::secp256k1_blinded_musig_partial_sign_without_keyaggcoeff(
+                secp.ctx().as_ptr(),
+                partial_sig.as_mut_ptr(),
+                secnonce.as_mut_ptr(),
+                keypair.as_c_ptr(),
+                self.as_ptr(),
+                negation,
+            ) == 0
+            {
+                // Since the arguments in rust are always session_valid, the only reason
+                // this will fail if the nonce was reused.
+                Err(MusigSignError::NonceReuse)
+            } else {
+                Ok(partial_sig)
+            }
+        }
+    }
+
     /// Checks that an individual partial signature verifies
     ///
     /// This function is essential when using protocols with adaptor signatures.
@@ -1587,6 +1813,30 @@ impl MusigSession {
                 pub_key.as_c_ptr(),
                 key_agg_cache.as_ptr(),
                 self.as_ptr(),
+            ) == 1
+        }
+    }
+
+    /// Checks that an individual partial signature verifies
+    pub fn blinded_musig_partial_sig_verify<C: Signing>(
+        &self,
+        secp: &Secp256k1<C>,
+        partial_sig: &MusigPartialSignature,
+        pub_nonce: &MusigPubNonce,
+        pub_key: &PublicKey,
+        aggregate_pubkey: &PublicKey,
+        parity_acc: i32
+    ) -> bool {
+        let cx = secp.ctx().as_ptr();
+        unsafe {
+            ffi::secp256k1_blinded_musig_partial_sig_verify(
+                cx,
+                partial_sig.as_ptr(),
+                pub_nonce.as_ptr(),
+                pub_key.as_c_ptr(),
+                aggregate_pubkey.as_c_ptr(),
+                self.as_ptr(),
+                parity_acc
             ) == 1
         }
     }
