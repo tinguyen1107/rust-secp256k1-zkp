@@ -13,10 +13,10 @@ use {core, std};
 
 use crate::ffi::{self, CPtr};
 use crate::ZERO_TWEAK;
-use crate::{schnorr, KeyPair, XOnlyPublicKey};
+use crate::{schnorr, Keypair, XOnlyPublicKey};
 use crate::{Message, PublicKey, Secp256k1, SecretKey, Tweak};
 use crate::{Signing, Verification};
-use ffi::{MUSIG_SECNONCE_LEN, MUSIG_KEYAGG_COEF_LEN, MUSIG_SESSION_LEN};
+use ffi::{MUSIG_KEYAGG_COEF_LEN, MUSIG_SECNONCE_LEN, MUSIG_SESSION_LEN};
 use secp256k1::Parity;
 
 #[cfg(feature = "actual-rand")]
@@ -115,7 +115,7 @@ impl MusigKeyAggCache {
     /// ```rust
     /// # # [cfg(any(test, feature = "rand-std"))] {
     /// # use secp256k1_zkp::rand::{thread_rng, RngCore};
-    /// # use secp256k1_zkp::{MusigKeyAggCache, Secp256k1, SecretKey, KeyPair, PublicKey};
+    /// # use secp256k1_zkp::{MusigKeyAggCache, Secp256k1, SecretKey, Keypair, PublicKey};
     /// # let secp = Secp256k1::new();
     /// # let sk1 = SecretKey::new(&mut thread_rng());
     /// # let pub_key1 = PublicKey::from_secret_key(&secp, &sk1);
@@ -178,7 +178,7 @@ impl MusigKeyAggCache {
     /// ```rust
     /// # # [cfg(any(test, feature = "rand-std"))] {
     /// # use secp256k1_zkp::rand::{thread_rng, RngCore};
-    /// # use secp256k1_zkp::{MusigKeyAggCache, Secp256k1, SecretKey, KeyPair, PublicKey};
+    /// # use secp256k1_zkp::{MusigKeyAggCache, Secp256k1, SecretKey, Keypair, PublicKey};
     /// # let secp = Secp256k1::new();
     /// # let sk1 = SecretKey::new(&mut thread_rng());
     /// # let pub_key1 = PublicKey::from_secret_key(&secp, &sk1);
@@ -235,7 +235,7 @@ impl MusigKeyAggCache {
     /// ```rust
     /// # # [cfg(any(test, feature = "rand-std"))] {
     /// # use secp256k1_zkp::rand::{thread_rng, RngCore};
-    /// # use secp256k1_zkp::{MusigKeyAggCache, Secp256k1, SecretKey, KeyPair, PublicKey};
+    /// # use secp256k1_zkp::{MusigKeyAggCache, Secp256k1, SecretKey, Keypair, PublicKey};
     /// # let secp = Secp256k1::new();
     /// # let sk1 = SecretKey::new(&mut thread_rng());
     /// # let pub_key1 = PublicKey::from_secret_key(&secp, &sk1);
@@ -309,7 +309,7 @@ impl MusigKeyAggCache {
     /// ```rust
     /// # # [cfg(any(test, feature = "rand-std"))] {
     /// # use secp256k1_zkp::rand::{thread_rng, RngCore};
-    /// # use secp256k1_zkp::{MusigKeyAggCache, Secp256k1, SecretKey, KeyPair, PublicKey, MusigSessionId, Message};
+    /// # use secp256k1_zkp::{MusigKeyAggCache, Secp256k1, SecretKey, Keypair, PublicKey, MusigSessionId, Message};
     /// # let secp = Secp256k1::new();
     /// # let sk1 = SecretKey::new(&mut thread_rng());
     /// # let pub_key1 = PublicKey::from_secret_key(&secp, &sk1);
@@ -623,7 +623,6 @@ impl MusigKeyAggCoef {
     pub fn from_slice(array: [u8; MUSIG_KEYAGG_COEF_LEN]) -> Self {
         MusigKeyAggCoef(ffi::MusigKeyAggCoef(array))
     }
-
 }
 
 /// Musig partial signature parsing errors
@@ -694,14 +693,14 @@ pub fn adapt(
 
 /// Extract secret key negation flag from the aggregate_pubkey and parity_acc.
 /// This function is used when creating blinded signatures.
-/// 
+///
 /// # Returns:
 ///
 /// The [`bool`] result that can be later be used in a [`MusigSession::partial_sign`]
 /// # Arguments:
 ///
 /// * `secp` : [`Secp256k1`] context object initialized for signing
-/// * `aggregate_pubkey`: [`PublicKey`] containing the aggregate pubkey 
+/// * `aggregate_pubkey`: [`PublicKey`] containing the aggregate pubkey
 /// * `parity_acc`: The [`i32`] parity of the aggregate public key
 pub fn blinded_musig_negate_seckey<C: Signing>(
     secp: &Secp256k1<C>,
@@ -733,11 +732,10 @@ pub fn blinded_musig_pubkey_xonly_tweak_add<C: Signing>(
     secp: &Secp256k1<C>,
     aggregate_pubkey: &PublicKey,
     tweak32: SecretKey,
-
 ) -> (i32, PublicKey, Tweak) {
     unsafe {
         let mut parity_acc = 0;
-        let mut out_tweak32 = ZERO_TWEAK; 
+        let mut out_tweak32 = ZERO_TWEAK;
         let mut out_pubkey = aggregate_pubkey.clone();
 
         if ffi::secp256k1_blinded_musig_pubkey_xonly_tweak_add(
@@ -786,7 +784,7 @@ pub fn blinded_musig_pubkey_xonly_tweak_add<C: Signing>(
 /// ```rust
 /// # # [cfg(any(test, feature = "rand-std"))] {
 /// # use secp256k1_zkp::rand::{thread_rng, RngCore};
-/// # use secp256k1_zkp::{MusigKeyAggCache, Secp256k1, SecretKey, KeyPair, PublicKey, MusigSessionId, Message, MusigAggNonce, MusigSession, adapt, extract_adaptor, Tweak};
+/// # use secp256k1_zkp::{MusigKeyAggCache, Secp256k1, SecretKey, Keypair, PublicKey, MusigSessionId, Message, MusigAggNonce, MusigSession, adapt, extract_adaptor, Tweak};
 /// # let secp = Secp256k1::new();
 /// # let sk1 = SecretKey::new(&mut thread_rng());
 /// # let pub_key1 = PublicKey::from_secret_key(&secp, &sk1);
@@ -826,7 +824,7 @@ pub fn blinded_musig_pubkey_xonly_tweak_add<C: Signing>(
 /// let partial_sig1 = session.partial_sign(
 ///     &secp,
 ///     sec_nonce1,
-///     &KeyPair::from_secret_key(&secp, &sk1),
+///     &Keypair::from_secret_key(&secp, &sk1),
 ///     &key_agg_cache,
 /// ).unwrap();
 ///
@@ -834,7 +832,7 @@ pub fn blinded_musig_pubkey_xonly_tweak_add<C: Signing>(
 /// let partial_sig2 = session.partial_sign(
 ///     &secp,
 ///     sec_nonce2,
-///     &KeyPair::from_secret_key(&secp, &sk2),
+///     &Keypair::from_secret_key(&secp, &sk2),
 ///     &key_agg_cache,
 /// ).unwrap();
 ///
@@ -1035,7 +1033,7 @@ impl MusigAggNonce {
     /// ```rust
     /// # # [cfg(any(test, feature = "rand-std"))] {
     /// # use secp256k1_zkp::rand::{thread_rng, RngCore};
-    /// # use secp256k1_zkp::{MusigKeyAggCache, Secp256k1, SecretKey, KeyPair, PublicKey, MusigSessionId, Message, MusigAggNonce};
+    /// # use secp256k1_zkp::{MusigKeyAggCache, Secp256k1, SecretKey, Keypair, PublicKey, MusigSessionId, Message, MusigAggNonce};
     /// # let secp = Secp256k1::new();
     /// # let sk1 = SecretKey::new(&mut thread_rng());
     /// # let pub_key1 = PublicKey::from_secret_key(&secp, &sk1);
@@ -1140,7 +1138,6 @@ impl MusigAggNonce {
 pub struct BlindingFactor([u8; 32]);
 
 impl BlindingFactor {
-
     /// Creates a new [`MusigSessionId`] with thread local random bytes
     #[cfg(feature = "rand-std")]
     #[cfg_attr(docsrs, doc(cfg(feature = "rand-std")))]
@@ -1222,7 +1219,7 @@ impl MusigSession {
     /// ```rust
     /// # # [cfg(any(test, feature = "rand-std"))] {
     /// # use secp256k1_zkp::rand::{thread_rng, RngCore};
-    /// # use secp256k1_zkp::{MusigKeyAggCache, Secp256k1, SecretKey, KeyPair, PublicKey, MusigSessionId, Message, MusigAggNonce, MusigSession};
+    /// # use secp256k1_zkp::{MusigKeyAggCache, Secp256k1, SecretKey, Keypair, PublicKey, MusigSessionId, Message, MusigAggNonce, MusigSession};
     /// # let secp = Secp256k1::new();
     /// # let sk1 = SecretKey::new(&mut thread_rng());
     /// # let pub_key1 = PublicKey::from_secret_key(&secp, &sk1);
@@ -1266,10 +1263,10 @@ impl MusigSession {
     }
 
     /// Creates a new musig signing session with a blinding factor.
-    /// 
+    ///
     /// Takes the public nonces of all signers and computes a session that is
     /// required for signing and verification of partial signatures.
-    /// 
+    ///
     /// # Returns:
     ///
     /// A [`MusigSession`] that can be later used for signing.
@@ -1286,7 +1283,7 @@ impl MusigSession {
     /// ```rust
     /// # # [cfg(any(test, feature = "rand-std"))] {
     /// # use secp256k1_zkp::rand::{thread_rng, RngCore};
-    /// # use secp256k1_zkp::{MusigKeyAggCache, Secp256k1, SecretKey, KeyPair, PublicKey, MusigSessionId, Message, MusigAggNonce, MusigSession};
+    /// # use secp256k1_zkp::{MusigKeyAggCache, Secp256k1, SecretKey, Keypair, PublicKey, MusigSessionId, Message, MusigAggNonce, MusigSession};
     /// # let secp = Secp256k1::new();
     /// # let sk1 = SecretKey::new(&mut thread_rng());
     /// # let pub_key1 = PublicKey::from_secret_key(&secp, &sk1);
@@ -1313,7 +1310,7 @@ impl MusigSession {
     /// let aggnonce = MusigAggNonce::new(&secp, &[pub_nonce1, pub_nonce2]);
     ///
     /// let blinding_factor = BlindingFactor::new(&mut thread_rng());
-    /// 
+    ///
     /// let session = MusigSession::new(
     ///     &secp,
     ///     &key_agg_cache,
@@ -1330,14 +1327,21 @@ impl MusigSession {
         msg: Message,
         blinding_factor: &BlindingFactor,
     ) -> Self {
-        Self::with_optional_adapter_and_blinding_factor(secp, key_agg_cache, agg_nonce, msg, None, blinding_factor)
+        Self::with_optional_adapter_and_blinding_factor(
+            secp,
+            key_agg_cache,
+            agg_nonce,
+            msg,
+            None,
+            blinding_factor,
+        )
     }
 
     /// Creates a new musig signing session with a blinding factor.
-    /// 
+    ///
     /// Takes the public nonces of all signers and computes a session that is
     /// required for signing and verification of partial signatures.
-    /// 
+    ///
     /// # Returns:
     ///
     /// A [`MusigSession`] that can be later used for signing.
@@ -1354,7 +1358,7 @@ impl MusigSession {
     /// ```rust
     /// # # [cfg(any(test, feature = "rand-std"))] {
     /// # use secp256k1_zkp::rand::{thread_rng, RngCore};
-    /// # use secp256k1_zkp::{MusigKeyAggCache, Secp256k1, SecretKey, KeyPair, PublicKey, MusigSessionId, Message, MusigAggNonce, MusigSession};
+    /// # use secp256k1_zkp::{MusigKeyAggCache, Secp256k1, SecretKey, Keypair, PublicKey, MusigSessionId, Message, MusigAggNonce, MusigSession};
     /// # let secp = Secp256k1::new();
     /// # let sk1 = SecretKey::new(&mut thread_rng());
     /// # let pub_key1 = PublicKey::from_secret_key(&secp, &sk1);
@@ -1381,7 +1385,7 @@ impl MusigSession {
     /// let aggnonce = MusigAggNonce::new(&secp, &[pub_nonce1, pub_nonce2]);
     ///
     /// let blinding_factor = BlindingFactor::new(&mut thread_rng());
-    /// 
+    ///
     /// let session = MusigSession::new(
     ///     &secp,
     ///     &key_agg_cache,
@@ -1398,9 +1402,17 @@ impl MusigSession {
         msg: Message,
         adaptor: Option<PublicKey>,
         blinding_factor: &BlindingFactor,
-        tweak32: Tweak
+        tweak32: Tweak,
     ) -> Self {
-        Self::blinded_without_key_agg_cache(secp, aggregate_pubkey, agg_nonce, msg, adaptor, blinding_factor, tweak32)
+        Self::blinded_without_key_agg_cache(
+            secp,
+            aggregate_pubkey,
+            agg_nonce,
+            msg,
+            adaptor,
+            blinding_factor,
+            tweak32,
+        )
     }
 
     /// Same as [`MusigSession::new`] but with an adapter.
@@ -1494,7 +1506,7 @@ impl MusigSession {
         msg: Message,
         adaptor: Option<PublicKey>,
         blinding_factor: &BlindingFactor,
-        tweak32: Tweak
+        tweak32: Tweak,
     ) -> Self {
         let mut session = MusigSession(ffi::MusigSession::new());
         let adaptor_ptr = match adaptor {
@@ -1525,7 +1537,7 @@ impl MusigSession {
 
     /// Extract key aggregation coefficient and secret key negation flag from the cache.
     /// This function is used when creating blinded signatures.
-    /// 
+    ///
     /// # Returns:
     ///
     /// A [`MusigKeyAggCoef`] and [`bool`] that can be later be used in a [`MusigSession::partial_sign`]
@@ -1578,7 +1590,7 @@ impl MusigSession {
     /// * `sec_nonce`: [`MusigSecNonce`] to be used for this session that has never
     /// been used before. For mis-use resistance, this API takes a mutable reference
     /// to `sec_nonce` and sets it to zero even if the partial signing fails.
-    /// * `key_pair`: The [`KeyPair`] to sign the message
+    /// * `key_pair`: The [`Keypair`] to sign the message
     /// * `key_agg_cache`: [`MusigKeyAggCache`] containing the aggregate pubkey used in
     /// the creation of this session
     ///
@@ -1590,7 +1602,7 @@ impl MusigSession {
         &self,
         secp: &Secp256k1<C>,
         mut secnonce: MusigSecNonce,
-        keypair: &KeyPair,
+        keypair: &Keypair,
         key_agg_cache: &MusigKeyAggCache,
     ) -> Result<MusigPartialSignature, MusigSignError> {
         unsafe {
@@ -1627,7 +1639,7 @@ impl MusigSession {
     /// * `sec_nonce`: [`MusigSecNonce`] to be used for this session that has never
     /// been used before. For mis-use resistance, this API takes a mutable reference
     /// to `sec_nonce` and sets it to zero even if the partial signing fails.
-    /// * `key_pair`: The [`KeyPair`] to sign the message
+    /// * `key_pair`: The [`Keypair`] to sign the message
     /// * `key_agg_coef`: [`MusigKeyAggCoef`] containing the aggregate pubkey coefficient
     /// * `negate_seckey`: [`bool`] to negate the secret key
     ///
@@ -1639,13 +1651,13 @@ impl MusigSession {
         &self,
         secp: &Secp256k1<C>,
         mut secnonce: MusigSecNonce,
-        keypair: &KeyPair,
+        keypair: &Keypair,
         key_agg_coef: &MusigKeyAggCoef,
         negate_seckey: bool,
     ) -> Result<MusigPartialSignature, MusigSignError> {
         unsafe {
             let mut partial_sig = MusigPartialSignature(ffi::MusigPartialSignature::new());
-            
+
             let negation = if negate_seckey { 1 } else { 0 };
 
             if ffi::secp256k1_blinded_musig_partial_sign(
@@ -1681,7 +1693,7 @@ impl MusigSession {
     /// * `sec_nonce`: [`MusigSecNonce`] to be used for this session that has never
     /// been used before. For mis-use resistance, this API takes a mutable reference
     /// to `sec_nonce` and sets it to zero even if the partial signing fails.
-    /// * `key_pair`: The [`KeyPair`] to sign the message
+    /// * `key_pair`: The [`Keypair`] to sign the message
     /// * `key_agg_coef`: [`MusigKeyAggCoef`] containing the aggregate pubkey coefficient
     /// * `negate_seckey`: [`bool`] to negate the secret key
     ///
@@ -1693,12 +1705,12 @@ impl MusigSession {
         &self,
         secp: &Secp256k1<C>,
         mut secnonce: MusigSecNonce,
-        keypair: &KeyPair,
+        keypair: &Keypair,
         negate_seckey: bool,
     ) -> Result<MusigPartialSignature, MusigSignError> {
         unsafe {
             let mut partial_sig = MusigPartialSignature(ffi::MusigPartialSignature::new());
-            
+
             let negation = if negate_seckey { 1 } else { 0 };
 
             if ffi::secp256k1_blinded_musig_partial_sign_without_keyaggcoeff(
@@ -1748,7 +1760,7 @@ impl MusigSession {
     /// ```rust
     /// # # [cfg(any(test, feature = "rand-std"))] {
     /// # use secp256k1_zkp::rand::{thread_rng, RngCore};
-    /// # use secp256k1_zkp::{MusigKeyAggCache, Secp256k1, SecretKey, KeyPair, PublicKey, MusigSessionId, Message, MusigAggNonce, MusigSession};
+    /// # use secp256k1_zkp::{MusigKeyAggCache, Secp256k1, SecretKey, Keypair, PublicKey, MusigSessionId, Message, MusigAggNonce, MusigSession};
     /// # let secp = Secp256k1::new();
     /// # let sk1 = SecretKey::new(&mut thread_rng());
     /// # let pub_key1 = PublicKey::from_secret_key(&secp, &sk1);
@@ -1779,7 +1791,7 @@ impl MusigSession {
     ///     msg,
     /// );
     ///
-    /// let keypair = KeyPair::from_secret_key(&secp, &sk1);
+    /// let keypair = Keypair::from_secret_key(&secp, &sk1);
     /// let partial_sig1 = session.partial_sign(
     ///     &secp,
     ///     sec_nonce1,
@@ -1825,7 +1837,7 @@ impl MusigSession {
         pub_nonce: &MusigPubNonce,
         pub_key: &PublicKey,
         aggregate_pubkey: &PublicKey,
-        parity_acc: i32
+        parity_acc: i32,
     ) -> bool {
         let cx = secp.ctx().as_ptr();
         unsafe {
@@ -1836,7 +1848,7 @@ impl MusigSession {
                 pub_key.as_c_ptr(),
                 aggregate_pubkey.as_c_ptr(),
                 self.as_ptr(),
-                parity_acc
+                parity_acc,
             ) == 1
         }
     }
@@ -1855,7 +1867,7 @@ impl MusigSession {
     /// ```rust
     /// # # [cfg(any(test, feature = "rand-std"))] {
     /// # use secp256k1_zkp::rand::{thread_rng, RngCore};
-    /// # use secp256k1_zkp::{MusigKeyAggCache, Secp256k1, SecretKey, KeyPair, PublicKey, MusigSessionId, Message, MusigAggNonce, MusigSession};
+    /// # use secp256k1_zkp::{MusigKeyAggCache, Secp256k1, SecretKey, Keypair, PublicKey, MusigSessionId, Message, MusigAggNonce, MusigSession};
     /// # let secp = Secp256k1::new();
     /// # let sk1 = SecretKey::new(&mut thread_rng());
     /// # let pub_key1 = PublicKey::from_secret_key(&secp, &sk1);
@@ -1889,7 +1901,7 @@ impl MusigSession {
     /// let partial_sig1 = session.partial_sign(
     ///     &secp,
     ///     sec_nonce1,
-    ///     &KeyPair::from_secret_key(&secp, &sk1),
+    ///     &Keypair::from_secret_key(&secp, &sk1),
     ///     &key_agg_cache,
     /// ).unwrap();
     ///
@@ -1897,7 +1909,7 @@ impl MusigSession {
     /// let partial_sig2 = session.partial_sign(
     ///     &secp,
     ///     sec_nonce2,
-    ///     &KeyPair::from_secret_key(&secp, &sk2),
+    ///     &Keypair::from_secret_key(&secp, &sk2),
     ///     &key_agg_cache,
     /// ).unwrap();
     ///

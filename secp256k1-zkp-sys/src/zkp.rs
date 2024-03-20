@@ -3,7 +3,7 @@ use core::{
     hash::{self, Hash},
 };
 
-use {types::*, Context, KeyPair, PublicKey, Signature, XOnlyPublicKey};
+use {types::*, Context, Keypair, PublicKey, Signature, XOnlyPublicKey};
 
 /// Rangeproof maximum length
 pub const RANGEPROOF_MAX_LENGTH: size_t = 5134;
@@ -577,7 +577,7 @@ extern "C" {
         cx: *const Context,
         partial_sig: *mut MusigPartialSignature,
         secnonce: *mut MusigSecNonce,
-        keypair: *const KeyPair,
+        keypair: *const Keypair,
         keyagg_cache: *const MusigKeyAggCache,
         session: *const MusigSession,
     ) -> c_int;
@@ -590,7 +590,7 @@ extern "C" {
         cx: *const Context,
         partial_sig: *mut MusigPartialSignature,
         secnonce: *mut MusigSecNonce,
-        keypair: *const KeyPair,
+        keypair: *const Keypair,
         session: *const MusigSession,
         keyaggcoef: *const MusigKeyAggCoef,
         negate_seckey: c_int,
@@ -604,7 +604,7 @@ extern "C" {
         cx: *const Context,
         partial_sig: *mut MusigPartialSignature,
         secnonce: *mut MusigSecNonce,
-        keypair: *const KeyPair,
+        keypair: *const Keypair,
         session: *const MusigSession,
         negate_seckey: c_int,
     ) -> c_int;
