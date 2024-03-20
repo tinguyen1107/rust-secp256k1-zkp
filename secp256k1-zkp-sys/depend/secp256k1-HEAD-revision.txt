@@ -1,2 +1,2 @@
 # This file was automatically created by vendor-libsecp.sh
-1d256089004a19bdbead7c5676e52c8e07b09fce
+6e5e9ab7ebaec7eb1879af9c668dbd326648722d
